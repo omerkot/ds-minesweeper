@@ -1,0 +1,19 @@
+# Build output
+build/
+*.elf
+*.o
+*.d
+*.map
+*.bin
+
+# Generated helper scripts
+.generate_*.py
+
+# ROM output
+# Keep ROMs out of normal source commits. Upload .nds files as GitHub Releases instead.
+*.nds
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+.vscode/
