@@ -50,7 +50,6 @@ The top-screen HUD is visual only. Use buttons for new game and difficulty chang
 
 - START: new game
 - SELECT: cycle difficulty
-- X/Y: change difficulty
 
 After a game ends, tapping the lower-screen WIN/LOSE popup starts a new game.
 
