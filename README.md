@@ -26,8 +26,6 @@ The project targets both melonDS and DraStic. It uses a custom generated ARM7 co
 - B: flag selected tile
 - START: new game
 - SELECT: cycle difficulty
-- X: next difficulty
-- Y: previous difficulty
 - L/R: pan horizontally on large boards
 
 ### Touch
