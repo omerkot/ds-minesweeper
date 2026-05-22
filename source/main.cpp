@@ -1,6 +1,8 @@
 #include <nds.h>
 #include <stdlib.h>
 
+#include "generated_top_screen_bg.h"
+
 static const int MAX_W = 30;
 static const int MAX_H = 16;
 static const int TILE = 16;
@@ -377,24 +379,6 @@ static void drawGlyph5x7(int x, int y, char ch, int scale, u16 color) {
     }
 }
 
-static void drawDigit(int x, int y, int digit, int scale, u16 color) {
-    if (digit < 0 || digit > 9) return;
-    drawGlyph5x7(x, y, char('0' + digit), scale, color);
-}
-
-static void drawNumberFixed2(int x, int y, int value, int scale, u16 color) {
-    if (value < 0) value = 0;
-    if (value > 99) value = 99;
-    int digitW = 5 * scale;
-    int gap = scale;
-    drawDigit(x, y, (value / 10) % 10, scale, color);
-    drawDigit(x + digitW + gap, y, value % 10, scale, color);
-}
-
-static void drawLetter(int x, int y, char ch, int scale, u16 color) {
-    drawGlyph5x7(x, y, ch, scale, color);
-}
-
 static void drawText(const char *text, int x, int y, int scale, u16 color) {
     int cursor = x;
     for (int i = 0; text[i]; i++) {
@@ -413,6 +397,65 @@ static void drawCenteredText(const char *text, int centerX, int y, int scale, u1
     drawText(text, centerX - textWidth(text, scale) / 2, y, scale, color);
 }
 
+
+static void drawTopScreenBackground() {
+    for (int i = 0; i < 256 * 192; i++) {
+        fbCurrent[i] = topScreenBg[i];
+    }
+}
+
+static void drawOutlinedText(const char *text, int x, int y, int scale, u16 color) {
+    drawText(text, x - 1, y,     scale, COL_BLACK);
+    drawText(text, x + 1, y,     scale, COL_BLACK);
+    drawText(text, x,     y - 1, scale, COL_BLACK);
+    drawText(text, x,     y + 1, scale, COL_BLACK);
+    drawText(text, x,     y,     scale, color);
+}
+
+static int textWidthNarrow(const char *text, int scale) {
+    int w = 0;
+    int glyphs = 0;
+    for (int i = 0; text[i]; i++) {
+        if (text[i] == ' ') w += 3 * scale;
+        else { w += 5 * scale + 1; glyphs++; }
+    }
+    if (glyphs > 0) w -= 1;
+    return w;
+}
+
+static void drawTextNarrow(const char *text, int x, int y, int scale, u16 color) {
+    int cursor = x;
+    for (int i = 0; text[i]; i++) {
+        if (text[i] == ' ') cursor += 3 * scale;
+        else {
+            drawGlyph5x7(cursor, y, text[i], scale, color);
+            cursor += 5 * scale + 1;
+        }
+    }
+}
+
+static void drawOutlinedTextNarrow(const char *text, int x, int y, int scale, u16 color) {
+    drawTextNarrow(text, x - 1, y,     scale, COL_BLACK);
+    drawTextNarrow(text, x + 1, y,     scale, COL_BLACK);
+    drawTextNarrow(text, x,     y - 1, scale, COL_BLACK);
+    drawTextNarrow(text, x,     y + 1, scale, COL_BLACK);
+    drawTextNarrow(text, x,     y,     scale, color);
+}
+
+static void drawOutlinedCenteredTextNarrow(const char *text, int centerX, int y, int scale, u16 color) {
+    drawOutlinedTextNarrow(text, centerX - textWidthNarrow(text, scale) / 2 + 1, y, scale, color);
+}
+
+static void drawOutlinedNumberFixed2(int x, int y, int value, int scale, u16 color) {
+    if (value < 0) value = 0;
+    if (value > 99) value = 99;
+    char buf[3];
+    buf[0] = char('0' + ((value / 10) % 10));
+    buf[1] = char('0' + (value % 10));
+    buf[2] = '\0';
+    drawOutlinedText(buf, x, y, scale, color);
+}
+
 static void drawMineShape(int cx, int cy, u16 color) {
     fillRect(cx - 4, cy - 4, 9, 9, color);
     fillRect(cx - 6, cy - 2, 13, 5, color);
@@ -429,49 +472,8 @@ static void drawFlagShape(int x, int y) {
     fillRect(x + 9, y + 6, 3, 3, COL_DARK_RED);
 }
 
-static void drawButton(int x, int y, int w, int h, bool active, char label) {
-    fillRect(x, y, w, h, active ? COL_ACTIVE : COL_BUTTON);
-    fillRect(x, y, w, 2, COL_TILE_HI);
-    fillRect(x, y, 2, h, COL_TILE_HI);
-    fillRect(x, y + h - 2, w, 2, COL_TILE_SH);
-    fillRect(x + w - 2, y, 2, h, COL_TILE_SH);
-    drawRect(x, y, w, h, COL_GRID);
-    drawLetter(x + (w - 10) / 2, y + (h - 14) / 2, label, 2, active ? COL_BLACK : COL_WHITE);
-}
 
 
-static void drawStatusFace(int x, int y, int w, int h) {
-    fillRect(x, y, w, h, COL_YELLOW);
-    fillRect(x, y, w, 2, COL_TILE_HI);
-    fillRect(x, y, 2, h, COL_TILE_HI);
-    fillRect(x, y + h - 2, w, 2, COL_FACE_DK);
-    fillRect(x + w - 2, y, 2, h, COL_FACE_DK);
-    drawRect(x, y, w, h, COL_BLACK);
-
-    if (won) {
-        // Happy winning face with sunglasses.
-        fillRect(x + 6, y + 7, 6, 4, COL_BLACK);
-        fillRect(x + w - 12, y + 7, 6, 4, COL_BLACK);
-        fillRect(x + 12, y + 9, w - 24, 2, COL_BLACK);
-        fillRect(x + 8, y + h - 9, w - 16, 2, COL_BLACK);
-        putPixel(x + 7, y + h - 10, COL_BLACK);
-        putPixel(x + w - 8, y + h - 10, COL_BLACK);
-    } else if (gameOver) {
-        // Sad losing face.
-        fillRect(x + 7, y + 7, 3, 3, COL_BLACK);
-        fillRect(x + w - 10, y + 7, 3, 3, COL_BLACK);
-        fillRect(x + 8, y + h - 8, w - 16, 2, COL_RED);
-        putPixel(x + 7, y + h - 7, COL_RED);
-        putPixel(x + w - 8, y + h - 7, COL_RED);
-    } else {
-        // Normal smile.
-        fillRect(x + 7, y + 7, 3, 3, COL_BLACK);
-        fillRect(x + w - 10, y + 7, 3, 3, COL_BLACK);
-        fillRect(x + 8, y + h - 10, w - 16, 2, COL_BLACK);
-        putPixel(x + 7, y + h - 11, COL_BLACK);
-        putPixel(x + w - 8, y + h - 11, COL_BLACK);
-    }
-}
 
 static void clampCamera() {
     int maxX = boardW * TILE + BOARD_FRAME * 2 - VIEW_W;
@@ -574,28 +576,6 @@ static void drawScrollBars() {
 }
 
 
-static void drawMiniMap() {
-    // Small board-position indicator in the top panel: full board outline + current viewport.
-    int x = 97, y = 158, w = 62, h = 26;
-    fillRect(x, y, w, h, C(8, 8, 8));
-    drawRect(x, y, w, h, COL_BORDER);
-
-    int boardPxW = boardW * TILE + BOARD_FRAME * 2;
-    int boardPxH = boardH * TILE + BOARD_FRAME * 2;
-    int viewW = boardPxW <= VIEW_W ? w - 4 : (VIEW_W * (w - 4)) / boardPxW;
-    int viewH = boardPxH <= VIEW_H ? h - 4 : (VIEW_H * (h - 4)) / boardPxH;
-    if (viewW < 5) viewW = 5;
-    if (viewH < 5) viewH = 5;
-
-    int maxX = boardPxW - VIEW_W;
-    int maxY = boardPxH - VIEW_H;
-    if (maxX < 1) maxX = 1;
-    if (maxY < 1) maxY = 1;
-    int vx = x + 2 + (camX * ((w - 4) - viewW)) / maxX;
-    int vy = y + 2 + (camY * ((h - 4) - viewH)) / maxY;
-    fillRect(vx, vy, viewW, viewH, COL_YELLOW);
-    drawRect(vx, vy, viewW, viewH, COL_BLACK);
-}
 
 
 static void drawBoardFrame() {
@@ -630,39 +610,14 @@ static void drawBoardFrame() {
 }
 
 static void drawTopScreen() {
-    fillRect(0, 0, 256, 192, C(7, 10, 16));
+    drawTopScreenBackground();
 
-    // Title panel
-    fillRect(8, 8, 240, 38, C(12, 16, 24));
-    drawRect(8, 8, 240, 38, COL_TILE_HI);
-    drawCenteredText("MINESWEEPER DS", 129, 21, 2, COL_BLACK);
-    drawCenteredText("MINESWEEPER DS", 128, 20, 2, COL_YELLOW);
+    // Code-rendered HUD text over the clean 256x192 top-screen asset.
+    drawOutlinedNumberFixed2(51, 154, mineCount - flagsPlaced, 2, C(4, 19, 0));
+    drawOutlinedNumberFixed2(129, 154, flagsPlaced, 2, C(25, 14, 0));
 
-    // Clean stats panel: mines left, face centered, flags right.
-    fillRect(8, 54, 240, 58, COL_PANEL);
-    drawRect(8, 54, 240, 58, COL_GRID);
-
-    // Symmetric stat groups around the center face:
-    // mines: icon then number; flags: number then icon.
-    // The two numeric counters are mirrored around the smiley.
-    drawMineShape(28, 82, COL_BLACK);
-    // Counters are centered in the open space between the icon and the face.
-    drawNumberFixed2(49, 72, mineCount - flagsPlaced, 3, COL_RED);
-
-    drawStatusFace(112, 67, 32, 30);
-
-    drawNumberFixed2(175, 72, flagsPlaced, 3, COL_YELLOW);
-    drawFlagShape(219, 73);
-
-    // Difficulty buttons.
-    drawButton(30, 124, 42, 28, difficultyIndex == 0, 'B');
-    drawButton(107, 124, 42, 28, difficultyIndex == 1, 'I');
-    drawButton(184, 124, 42, 28, difficultyIndex == 2, 'E');
-
-    // Small unobtrusive board-position map at the bottom of the top screen.
-    drawMiniMap();
-
-    // Centered board-position indicator replaces the old control hints.
+    const char *diff = difficultyIndex == 0 ? "EASY" : (difficultyIndex == 1 ? "INTR" : "HARD");
+    drawOutlinedCenteredTextNarrow(diff, 221, 154, 2, C(22, 2, 2));
 }
 
 
@@ -845,11 +800,16 @@ static bool screenToTile(int px, int py, int &tx, int &ty) {
     return inBounds(tx, ty);
 }
 
+
 // The DS touchscreen is only on the lower/sub screen. The smiley and difficulty
 // buttons are drawn on the upper/main screen, so they cannot be touched.
 // START/SELECT/X/Y handle new game and difficulty changes instead.
 static bool touchOnSmiley(int, int) { return false; }
 static int touchDifficulty(int, int) { return -1; }
+
+static bool touchOnEndOverlay(int px, int py) {
+    return gameOver && px >= 24 && px < 232 && py >= 48 && py < 144;
+}
 
 
 static void revealCursorTile() {
@@ -956,7 +916,11 @@ int main(void) {
 
         if (touchStarted) {
             int d = touchDifficulty(touch.px, touch.py);
-            if (touchOnSmiley(touch.px, touch.py)) {
+            if (touchOnEndOverlay(touch.px, touch.py)) {
+                newGame();
+                drawGame();
+                presentFrame();
+            } else if (touchOnSmiley(touch.px, touch.py)) {
                 newGame();
                 drawGame();
                 presentFrame();

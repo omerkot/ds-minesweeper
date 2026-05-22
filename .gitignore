@@ -6,12 +6,17 @@ build/
 *.map
 *.bin
 
-# Generated helper scripts
+# Generated build helpers/headers
 .generate_*.py
+source/generated_*.h
 
 # ROM output
-# Keep ROMs out of normal source commits. Upload .nds files as GitHub Releases instead.
 *.nds
+
+# Unused/generated asset experiments
+audio/
+assets/top_screen.jpg
+assets/hud_font.png
 
 # OS/editor junk
 .DS_Store

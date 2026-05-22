@@ -11,8 +11,42 @@ ARM7_BUILDDIR := build/custom_arm7
 ARM7_SRC := $(ARM7_BUILDDIR)/arm7_sound.c
 ARM7ELF := $(ARM7_BUILDDIR)/arm7_sound.elf
 
-# Keep the normal BlocksDS ROM build as the default target. Without this, the
-# first explicit target below ($(ARM7ELF)) becomes Make's default goal.
+# Generate a 256x192 RGB555 upper-screen background from the already-scaled PNG.
+# The generated header is intentionally not committed.
+define GENERATE_TOP_SCREEN_BG_PY
+import pathlib
+try:
+    from PIL import Image
+except ImportError:
+    raise SystemExit("Pillow is required to build the top screen background. Install it with: apt-get install -y python3-pil")
+
+root = pathlib.Path(__file__).resolve().parent
+src = root / "assets" / "top_screen_256x192.png"
+out = root / "source" / "generated_top_screen_bg.h"
+if not src.exists():
+    raise SystemExit("Missing assets/top_screen_256x192.png")
+
+img = Image.open(src).convert("RGB")
+if img.size != (256, 192):
+    raise SystemExit(f"assets/top_screen_256x192.png must be exactly 256x192, got {img.size}")
+values = []
+for r, g, b in img.getdata():
+    r5 = r >> 3
+    g5 = g >> 3
+    b5 = b >> 3
+    values.append(0x8000 | r5 | (g5 << 5) | (b5 << 10))
+
+with out.open("w") as f:
+    f.write("#pragma once\n")
+    f.write("static const u16 topScreenBg[256 * 192] = {\n")
+    for i in range(0, len(values), 12):
+        f.write("    " + ", ".join(f"0x{v:04X}" for v in values[i:i+12]) + ",\n")
+    f.write("};\n")
+endef
+
+$(file >.generate_top_screen_bg.py,$(GENERATE_TOP_SCREEN_BG_PY))
+$(shell python3 .generate_top_screen_bg.py)
+
 .DEFAULT_GOAL := all
 
 # Generate a custom ARM7 core from the exact PCM arrays in source/main.cpp.
