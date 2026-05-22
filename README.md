@@ -1,5 +1,7 @@
 # DS Minesweeper
 
+<img width="256" height="378" alt="Image" src="https://github.com/user-attachments/assets/54d374ec-f6fa-4f89-b094-6eb3088de1ec" />
+
 A Minesweeper clone for Nintendo DS, built with BlocksDS/Wonderful.
 
 The project targets both melonDS and DraStic. It uses a custom generated ARM7 core for DraStic-compatible sound while keeping lower-screen touch input working through shared IPC RAM.
