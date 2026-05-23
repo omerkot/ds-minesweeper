@@ -648,7 +648,7 @@ static void drawBoardScreen() {
     fillRect(0, 0, 256, 192, COL_BG);
     drawBoardFrame();
     for (int y = 0; y < boardH; y++) for (int x = 0; x < boardW; x++) drawTile(x, y);
-    drawCursor();
+    if (!gameOver) drawCursor();
     drawRect(VIEW_X, VIEW_Y, VIEW_W, VIEW_H, COL_GRID);
     drawScrollBars();
     drawEndOverlay();
@@ -883,10 +883,16 @@ int main(void) {
         };
 
         bool buttonChanged = false;
-        if (shouldRepeat(KEY_LEFT, leftHeldFrames))  { moveCursor(-cursorStepForHold(leftHeldFrames), 0); buttonChanged = true; }
-        if (shouldRepeat(KEY_RIGHT, rightHeldFrames)) { moveCursor(cursorStepForHold(rightHeldFrames), 0); buttonChanged = true; }
-        if (shouldRepeat(KEY_UP, upHeldFrames))    { moveCursor(0, -cursorStepForHold(upHeldFrames)); buttonChanged = true; }
-        if (shouldRepeat(KEY_DOWN, downHeldFrames))  { moveCursor(0, cursorStepForHold(downHeldFrames)); buttonChanged = true; }
+        bool lRepeat = shouldRepeat(KEY_LEFT,  leftHeldFrames);
+        bool rRepeat = shouldRepeat(KEY_RIGHT, rightHeldFrames);
+        bool uRepeat = shouldRepeat(KEY_UP,    upHeldFrames);
+        bool dRepeat = shouldRepeat(KEY_DOWN,  downHeldFrames);
+        if (!gameOver) {
+            if (lRepeat) { moveCursor(-cursorStepForHold(leftHeldFrames),  0); buttonChanged = true; }
+            if (rRepeat) { moveCursor( cursorStepForHold(rightHeldFrames), 0); buttonChanged = true; }
+            if (uRepeat) { moveCursor(0, -cursorStepForHold(upHeldFrames));    buttonChanged = true; }
+            if (dRepeat) { moveCursor(0,  cursorStepForHold(downHeldFrames));  buttonChanged = true; }
+        }
 
         if (down & KEY_A)     { revealCursorTile(); buttonChanged = true; }
         if (down & KEY_B)     { if (!gameOver) toggleFlag(cursorX, cursorY); buttonChanged = true; }
@@ -918,6 +924,9 @@ int main(void) {
             int d = touchDifficulty(touch.px, touch.py);
             if (touchOnEndOverlay(touch.px, touch.py)) {
                 newGame();
+                // Mark this touch as consumed so the lift doesn't act on the new game.
+                touchTracking = true;
+                longTapTriggered = true;
                 drawGame();
                 presentFrame();
             } else if (touchOnSmiley(touch.px, touch.py)) {
